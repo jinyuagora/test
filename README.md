@@ -15,7 +15,7 @@ Agora 即时通讯支持集成 APNs 消息推送服务，为 iOS 开发者提供
 - 已开启 Agora 即时通讯服务，详见[开启和配置即时通讯服务](./enable_agora_chat?platform=iOS)。
 - 参考如下步骤，开启 APNs 推送服务，并将 APNs 的推送证书等信息上传到 Agora 控制台。
 
-### <a name="step-1"></a>步骤一 开启 APNs 推送服务
+### 步骤一 开启 APNs 推送服务
 
 1. 申请证书签名请求 Certificate Signing Request (CSR) 文件。
 点击**钥匙串访问** > **证书助理** > **从证书颁发机构请求证书**，在**证书助理**界面填写电子邮件地址和常用名称，并选择**存储到磁盘**。
@@ -503,4 +503,4 @@ message.chatType = AgoraChatTypeChat;
 | `t`               | 消息接收方用户名。                                 |
 | `m`               | 消息 ID。                                          |
   
-  [步骤一](#step-1)
+  [步骤一](#步骤一-开启-APNs-推送服务)
