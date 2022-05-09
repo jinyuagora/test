@@ -1,506 +1,1211 @@
-# 设置 APNs 消息推送
+# Events and Callbacks
 
-Agora 即时通讯支持集成 APNs 消息推送服务，为 iOS 开发者提供低延时、高送达、高并发、不侵犯用户个人数据的离线消息推送服务。
+Agora Chat supports HTTP callbacks (webhooks).
+You can listen for event callbacks and add app logics accordingly. Once a registered callback is triggered by a specified type of event, the Agora Chat server sends an HTTP POST request to your app server, notifying you that the event occurs. The request body is a JSON string encoded in UTF-8 characters.
 
-当客户端应用进程被关闭等原因导致用户离线，Agora 即时通讯服务会通过 APNs 消息推送服务向该离线用户的设备推送消息通知。当用户再次上线时，会收到离线期间所有消息。
+This page introduces the events and callbacks in Agora Chat.
 
-## 技术原理
+## User login and logout events
 
-下图展示了消息推送的基本工作流程：
+When a user logs in to or logs out of the Agora Chat app, the Agora Chat server sends a callback to your app server.
 
-![](https://web-cdn.agora.io/docs-files/1642564011796)
+### Log in to the app
 
-## 前提条件
+When a user logs in to the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code is as follows:
 
-- 已开启 Agora 即时通讯服务，详见[开启和配置即时通讯服务](./enable_agora_chat?platform=iOS)。
-- 参考如下步骤，开启 APNs 推送服务，并将 APNs 的推送证书等信息上传到 Agora 控制台。
-
-### 步骤一 开启 APNs 推送服务
-
-1. 申请证书签名请求 Certificate Signing Request (CSR) 文件。
-点击**钥匙串访问** > **证书助理** > **从证书颁发机构请求证书**，在**证书助理**界面填写电子邮件地址和常用名称，并选择**存储到磁盘**。
-![](https://web-cdn.agora.io/docs-files/1642564150801)
-点击**继续**，添加存储路径，你会在该路径获取到一个名为 `CertificateSigningRequest.certSigningRequest` 的 CSR 文件。
-
-2. 申请 App ID。
-登录 [iOS Developer Center](https://developer.apple.com/cn/)，点击 **Account** > **Certificates, Identifiers & Profiles** > **Identifiers** 添加 App ID，并参考如下配置：
- - **Select a type**: 选择 **App**
- - **Description**: App ID 的描述信息。
- - **Bundle ID**: 可以设置为 `com.YourCompany.YourProjectName`。
- - **Capabilities**: 选择 **Push Notification**。
-
-3. 分别创建开发环境和生产环境的消息推送证书。
-**开发环境**
- 1. 点击 **app** > **Push Notifications** > **Development SSL Certificate** > **Create Certificate**。
- 2. **Platform** 选择 iOS , **Choose File** 选择第 1 步中创建的 CSR 文件，点击 **Continue**，生成 [Apple Development IOS Push Services](https://help.apple.com/xcode/mac/current/?spm=a2c4g.11186623.0.0.14864088B1zf4p#/dev80c6204ec) 文件。
-
- **生产环境**
- 1. 点击 **app** > **Push Notifications** > **Production SSL Certificate** > **Create Certificate。**
- 2. **Platform** 选择 iOS , **Choose File** 选择第 1 步中创建的 CSR 文件，点击 **Continue**，生成 [APS (Apple Push Service)](https://help.apple.com/xcode/mac/current/?spm=a2c4g.11186623.0.0.14864088B1zf4p#/dev80c6204ec) 文件。
-
-4. 获取消息推送证书。
-双击导入**第 3 步**创建的推送证书，在**钥匙串访问** > **登录** > **我的证书**中，找到已经导入的证书，右键选择该证书导出为 .p12 文件，并设置证书密钥。
-
-5. 生成 Provisioning Profile 文件。
-登录 [iOS Developer Center](https://developer.apple.com/cn/)，点击 **Account** > **Certificates, Identifiers & Profiles** > **Profiles** 添加 Provisioning Profile，点击 **Continue**，并参考如下配置：
-
- - **Development**：选择 **iOS App Development**。
- - **Distribution**：选择 **Ad Hoc**。如需在 App Store 正式发布版本，请选择 **App Store**。
- - **App ID**：填写**第 2 步**创建的 App ID。
- - **Select Certificates**：选择**第 3 步**创建的推送证书。
- - **Select Devices**：选择待开发的设备。
- - **Provisioning Profile Name**：填写 Provisioning Profile 文件名称。
-
- 点击 **Generate**，生成 Provisioning Profile 文件。
-
-### 步骤二 上传推送证书等信息到控制台
-
-按照以下步骤，在 Agora 控制台上传消息推送证书等信息：
-
-1. 登录[控制台](https://sso2.agora.io/cn/)，点击左侧导航栏**项目管理**。
-2. 选择需要开通即时通讯服务的项目，点击**配置**。
-![](https://web-cdn.agora.io/docs-files/1642564654253)
-
-3. 找到**实时互动拓展能力**模块的**即时通讯IM**，点击**配置**。
-![](https://web-cdn.agora.io/docs-files/1642564694699)
-
-4. 在消息推送模块，点击添加推送证书。
-![](https://web-cdn.agora.io/docs-files/1642564728101)
-在弹窗中选择**苹果**，并配置如下字段，完成后点击**保存**：
-   - 证书类型：消息推送证书类型，目前支持 p8 和 p12。
-   - 证书名称：消息推送证书名称。填写在[步骤一](#step1)中创建的消息推送证书名称。
-   - 证书密钥：消息推送证书密钥。填写在在[步骤一](#step1)中导出消息推送证书文件时设置的证书密钥。
-   - 上传文件：上传[步骤一](#step1)中获取的消息推送证书文件。
-   - 绑定 ID：Bundle ID。[步骤一](#step1)中创建 App ID 时设置的 Bundle ID。
-   - 环境：根据业务需要选择环境。开发、生产环境的证书需要分开上传。
-
-## 在客户端实现消息推送
-
-1. 打开 Xcode，点击 **Targets** > **Capability** > **Push Notifications** 开启消息推送权限。
-
-2. 将证书名称传递给 SDK。
-
-```swift
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    // 注册推送
-    [application registerForRemoteNotifications];
-    
-    // 初始化 Options，并设置 AppKey
-    AgoraOptions *options = [AgoraOptions optionsWithAppkey:@"XXXX#XXXX"];
-    
-    // 填写上传证书时设置的名称
-    options.apnsCertName = @"PushCertName";
-    
-    [AgoraChatClient.sharedClient initializeSDKWithOptions:options];
-    
-    return YES;
+```json
+{
+    "callId":"XXXX#XXXXe393c568-5ae5-4a0e-8a2c-008b52b49eed",
+    "reason":"login",
+    "security":"XXXXae2eXXXXced298883a0cf06d41b9",
+    "os":"ios",
+    "ip":"************",
+    "host":"*******",
+    "appkey":"XXXX#XXXX",
+    "user":"XXXX#XXXXtstXXXX/ios_XXXX01fd-b5a4-84d5-ebeb-bf10XXXX0442",
+    "version":"3.8.9.1",
+    "timestamp":1642585154644,
+    "status":"online"
 }
 ```
 
-3. 获取 Device Token，并传递给 SDK。
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `reason` | Object | The reason that triggers the callback. `login` indicates that a user logs in to the app. |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `os` | String | The operating system of the device. Valid values: `ios`, `android`, `linux`, `win`, and `other.` |
+| `ip` | String | The IP address of the user. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `user` | String | The unique identifier of the user, in the format of `{appKey}/{OS}_{deviceId}`. |
+| `version` | String | The version of the Agora Chat SDK. |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the login request, in milliseconds. |
+| `status` | String | The current status of the user. `online` indicates that the user is online. |
 
-```swift
-- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
-    [AgoraChatClient.sharedClient registerForRemoteNotificationsWithDeviceToken:deviceToken completion:^(AgoraError *aError) {
-        if (aError) {
-            NSLog(@"bind deviceToken error: %@", aError.errorDescription);
+### Log out of the app voluntarily
+
+When a user logs out of the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code is as follows:
+
+```json
+{
+    "callId":"XXXX#XXXX25b54a81-1376-4669-bb3d-178339a8f11b",
+    "reason":"logout",
+    "security":"XXXXd77eXXXXf26801627fdaadca987e",
+    "os":"ios",
+    "ip":"223.71.97.198:4XXXX",
+    "host":"********",
+    "appkey":"XXXX#XXXX",
+    "user":"XXXX#XXXXtstXXXX/ios_XXXX0737-db3a-d2b5-da18-b604XXXX195b",
+    "version":"3.8.9.1",
+    "timestamp":1642648914742,
+    "status":"offline"
+}
+```
+
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `reason` | Object | The reason that triggers the callback. `logout` indicates that a user logs out of the app. |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `os` | String | The operating system of the device. Valid values: `ios`, `android`, `linux`, `win`, and `other.` |
+| `ip` | String | The IP address of the user. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `user` | String | The unique identifier of the user, in the format of `{appKey}/{OS}_{deviceId}`. |
+| `version` | String | The version of the Agora Chat SDK. |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the logout request, in milliseconds. |
+| `status` | String | The current status of the user. `offline` indicates that the user is offline. |
+
+### Log out of the app passively
+
+When a user logs out of the Agora Chat app due to being kicked out by another device, the Agora Chat server sends a callback to your app server. The sample code is as follows:
+
+```json
+{
+    "callId":"XXXX#XXXX260ae3eb-ba31-4f01-9a62-8b3b05f3a16c",
+    "reason":"replaced",
+    "security":"XXXX00b1XXXX4fe76dbfdc664cbaa76b",
+    "os":"ios","ip":"223.71.97.198:52709",
+    "host":"msync@ebs-ali-beijing-msync40",
+    "appkey":"XXXX#XXXX",
+    "user":"XXXX#XXXXtst01XXXX/ios_XXXX01fd-b5a4-84d5-ebeb-bf10XXXX0442",
+    "version":"3.8.9.1",
+    "timestamp":1642648955563,
+    "status":"offline"
+}
+```
+
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `reason` | Object | The reason that triggers the callback. `replaced` indicates that a user logs out of the app due to being kicked out by another device. |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `os` | String | The operating system of the device. Valid values: `ios`, `android`, `linux`, `win`, and `other.` |
+| `ip` | String | The IP address of the user. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `user` | String | The unique identifier of the user, in the format of `{appKey}/{OS}_{deviceId}`. |
+| `version` | String | The version of the Agora Chat SDK. |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the logout request, in milliseconds. |
+| `status` | String | The current status of the user. `offline` indicates that the user is offline. |
+
+
+## Message events
+
+### Send a message
+
+When a user sends a message within a one-to-one chat, chat group, or chat room in the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code is as follows:
+
+```json
+{
+    "callId":"{appkey}_{uuid}",
+    "eventType":"chat_offline",
+    "timestamp":1600060847294,
+    "chat_type":"groupchat", 
+    "group_id":"1693XXXX238921545",
+    "from":"user1",
+    "to":"user2",
+    "msg_id":"8924XXXX42322",
+    "payload":{
+    // The details of the callback message.
+    },
+    "securityVersion":"1.0.0",
+    "security":"XXXX2c39XXXX9e7abc83958bcc3156d3"
+}
+```
+
+| Field | Data Type | Description |
+| -- | -- | -- |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `eventType` | String | The message type of the callback. <ul><li>`chat`: Uplink messages. The messages that are about to be sent by the Agora Chat server to end devices.</li><li>`chat_offline`: Offline messages. The messages that are not being sent by the Agora Chat server as the end user is offline.</li></ul> |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the message, in milliseconds. |
+| `chat_type` | String | The type of chat. <ul><li>`chat`: One-to-one chats.</li><li>`groupchat`: Chat groups and chat rooms.</li></ul> |
+| `group_id` | String | The ID of the chat group or chat room where the message resides. This field only exists if `chat_type` is set to `groupchat`. |
+| `from` | String | The sender of the message. |
+| `to`  | String | The recipient of the message. |
+| `msg_id` | String | The ID of the message callback. This ID is the same as the `msg_id` when the end user sends the message. |
+| `payload` | Object | The structure of the callback. This field varies according to the type of the sent message within an one-to-one chat, chat group, or chat room. See below for details. |
+| `securityVersion` | String | This parameter is reserved for future use.  |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
+
+#### Send a text message
+
+When a user sends a text message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    "ext":{},
+    "bodies":[
+        {
+            "msg":"rr",
+            "type":"txt"
         }
-    }];
-}
-- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
-    NSLog(@"Register Remote Notifications Failed");
+    ]
 }
 ```
 
-4. 配置推送属性，包括推送显示名称、推送样式、群组是否接收推送以及推送免打扰等。
+The `ext` field is the message extension in Object data type. The `bodies` field is the body of the message callback in Object data type, which contains the following fields:
 
-**设置推送显示名称**
+| Field | Data Type | Description |
+| :------------ | :------- | :---------------------------------------- |
+| `msg`        | String   | The content of the text message.                                  |
+| `type`       | String   | The type of the message. <li>`txt`: A text message. |
 
-参考如下代码设置推送显示名称：
 
-```swift
-[AgoraChatClient.sharedClient.pushManager updatePushDisplayName:@"displayName" completion:^(NSString * aDisplayName, AgoraError * aError) {
-    if (aError) 
-    {
-        NSLog(@"update push display name error: %@", aError.errorDescription);
-    }
-}];
-```
+#### Send an image message
 
-**设置推送显示样式**
+When a user sends an image message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
 
-参考如下代码设置是否显示推送消息内容：
-
-```swift
-[AgoraChatClient.sharedClient.pushManager updatePushDisplayStyle:AgoraPushDisplayStyleSimpleBanner completion:^(AgoraError * aError)
+```json
+"payload":
 {
-    if(aError)
-    {
-        NSLog(@"update display style error --- %@", aError.errorDescription);
-    }
-}];
-```
-
-| 参数         | 描述                                                         |
-| :----------- | :----------------------------------------------------------- |
-| `DisplayStyle` | <li>`AgoraPushDisplayStyleSimpleBanner`：显示"您有一条新消息"。<li>`AgoraPushDisplayStyleMessageSummary`：显示具体消息内容。 |
-
-**设置群组免打扰**
-
-群组免打扰指不接收指定群组的消息推送，设置群组免打扰后，当用户与服务器断开连接时不会收到该群组的消息推送。
-
-```
-[AgoraChatClient.sharedClient.pushManager updatePushServiceForGroups:groupIds disablePush:YES completion:^(AgoraError * aError)
-{
-    if(aError)
-    {
-        NSLog(@"update groups disable push error --- %@", aError.errorDescription);
-    }
-}];
-```
-
-| 参数     | 描述           |
-| :------- | :------------- |
-| groupIds | 群组 ID 列表。 |
-
-**获取免打扰群组列表**
-
-参考如下代码获取免打扰的群组列表：
-
-```swift
-NSArray<NSString*>* groupIds = [AgoraChatClient.sharedClient.pushManager noPushGroups];
-```
-
-| 参数     | 描述                   |
-| :------- | :--------------------- |
-| `groupIds` | 免打扰的群组 ID 列表。 |
-
-**设置单人免打扰**
-
-单人免打扰主指不接收指定用户的消息推送，设置单人免打扰后，当用户与服务器断开连接时不会收到该用户的消息推送。
-
-```swift
-[AgoraChatClient.sharedClient.pushManager updatePushServiceForUsers:userIds disablePush:YES completion:^(EMError * _Nonnull aError) {
-    if(aError)
-    {
-        NSLog(@"update users disable push error --- %@", aError.errorDescription);
-    }
-}];
-```
-| 参数    | 描述         |
-| :------ | :----------- |
-| `userIds` | 用户名列表。 |
-
-**获取单人免打扰列表**
-
-参考如下代码获取免打扰的用户列表：
-
-```swift
-NSArray<NSString*>* userIds = [EMClient.sharedClient.pushManager noPushUIds];
-```
-
-| 参数    | 描述                 |
-| :------ | :------------------- |
-| `userIds` | 免打扰的用户名列表。 |
-
-**设置消息推送免打扰**
-
-参考如下代码，设置消息推送免打扰时间段：
-
-```swift
-AgoraError *aError = [AgoraChatClient.sharedClient.pushManager disableOfflinePushStart:22 end:7];
-if (aError) 
-{
-    NSLog(@"disable push error --- %@", aError.errorDescription);
+    "ext":{},
+    "bodies":[
+        {
+            "filename":"image",
+            "size":
+            {
+                "width":746,
+                "height":1325
+            },
+            "secret":"XXXXqnkRXXXXAUHNhFQyIhTJxWxvGOwyx1",
+            "file_length":118179,
+            "type":"img",
+            "url":"https://a1.agora.com/"
+        }
+    ]
 }
 ```
 
-| 参数    | 描述                                          |
-| :------ | :-------------------------------------------- |
-| `start` | Int 类型。免打扰的起始时间。取值范围 [0,24]。 |
-| `end`   | Int 类型。免打扰的结束时间。取值范围 [0,24]。 |
+The `ext` field is the message extension in Object data type. The `bodies` field is the body of the message callback in Object data type, which contains the following fields:
 
-**开启消息推送**
+| Field | Data Type | Description |
+| :------------ | :------- | :---------------------------------------- |
+| `filename`   | String    | The filename of the image. |
+| `secret`     | String    | The secret returned after uploading the image file. |
+| `size`       | Json      | The dimension of the image in pixels. <ul><li>`height`: The height of the image.</li><li>`width`: The width of the image.</li></ul>   |
+| `file_length` | Int      | The size of the image in bytes. |
+| `url`   | String  | The URL of the image, in the format of `https://{host}/{org_name}/{app_name}/chatfiles/{uuid}`, where `uuid` is the ID of the image file. You can fetch `uuid` from the response body after the file is uploaded. |
+| `type`       | String   | The type of the message. <li>`img`: An image message. |
 
-参考如下代码，开启消息推送：
-	
-```swift
-AgoraError *aError = [AgoraChatClient.sharedClient.pushManager enableOfflinePush];
-if (aError) 
+
+#### Send an audio message
+
+When a user sends an audio message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
+
+```json
+"payload":
 {
-    NSLog(@"enable push error --- %@", aError.errorDescription);
+    "ext":{},
+    "bodies":[
+        {
+            "filename":"audio",
+            "length":4,
+            "secret":"XXXXynkRXXXX1e0Ksmmt2Ym6AzpRr9SxsUpF",
+            "file_length":6374,
+            "type":"audio",
+            "url":"https://a1.agora.com/"
+        }
+    ]
 }
 ```
 
-**获取消息推送属性**
+The `ext` field is the message extension in Object data type. The `bodies` field is the body of the message callback in Object data type, which contains the following fields:
 
-参考如下代码，获取消息推送属性：
+| Field | Data Type | Description |
+| :------------ | :------- | :---------------------------------------- |
+| `filename`        | String   | The filename of the audio.                               |
+| `secret`          | String    | The secret returned after uploading the audio file.  |
+| `file_length`  |  Long  | The size of the audio file in bytes. |
+| `length`    | Int | The duration of the audio file in seconds. |
+| `url`   | String  | The URL of the audio, in the format of `https://{host}/{org_name}/{app_name}/chatfiles/{uuid}`, where `uuid` is the ID of the audio file. You can fetch `uuid` from the response body after the file is uploaded. |
+| `type`       | String   | The type of the message. <li>`audio`: An audio message. |
 
-```swift
-[AgoraChatClient.sharedClient.pushManager getPushNotificationOptionsFromServerWithCompletion:^(AgoraPushOptions * aOptions, AgoraError * aError)
+#### Send a video message
+
+When a user sends a video message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
+
+```json
+"payload":
 {
-    if (aError)
-    {
-        NSLog(@"get push options error --- %@", aError.errorDescription);
-    }
-}];
-```
-`aOptions` 包含如下字段：
-
-| 字段                 | 描述                 |
-| :------------------- | :------------------- |
-| `displayName`        | 推送显示名称。       |
-| `displayStyle`       | 推送显示方式。       |
-| `noDisturbingStartH` | 免打扰的起始时间。   |
-| `noDisturbingEndH`   | 免打扰的结束时间。   |
-| `isNoDisturbEnable`  | 是否开启消息免打扰。 |
-
-5. 收到用户设备收到推送通知，并点击推送消息时，app 解析消息字段。
-
-```swift
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-      NSDictionary *userInfo = launchOptions[UIApplicationLaunchOptionsRemoteNotificationKey];
+    "ext":{},
+    "bodies":[
+        {
+            "thumb_secret":"t1AEXXXXEeyS81-d10_HOpjSZc8TD-ud40XXXXOStQrr7Mbc",
+            "filename":"video.mp4",
+            "size":
+            {
+                "width":360,
+                "height":480
+            },
+            "thumb":"https://a1.agora.com/agora-demo/shuang/chatfiles/XXXX0400-7a8b-11ec-8d83-7106XXXX33e6",
+            "length":10,
+            "secret":"XXXXgHqLXXXXBfuoalZCJPD7PVcoOu_RHTRa78bjU_KQAPr2",
+            "file_length":601404,
+            "type":"video",
+            "url":"https://a1.agora.com/agora-demo/shuang/chatfiles/XXXX3270-7a8b-11ec-9735-6922XXXXb891"
+        }
+    ]
 }
 ```
-推送消息 userInfo 示例如下：
-	
+
+The `ext` field is the message extension in Object data type. The `bodies` field is the body of the message callback in Object data type, which contains the following fields:
+
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `thumb_secret` | String | The secret returned after uploading the video thumbnail. |
+| `filename` | String | The filename of the video. |
+| `size` | Json | The dimension of the video thumbnail.<ul><li>`height`: The height of the thumbnail.</li><li>`width`: The width of the thumbnail.</li></ul> |
+| `thumb`   | String  | The URL of the thumbnail, in the format of `https://{host}/{org_name}/{app_name}/chatfiles/{uuid}`, where `uuid` is the ID of the video thumbnail. You can fetch `uuid` from the response body after the video thumbnail is uploaded. |
+| `secret` | String | The secret returned after uploading the video file. |
+| `file_length` | Long | The size of the video file in bytes. |
+| `url`   | String  | The URL of the video, in the format of `https://{host}/{org_name}/{app_name}/chatfiles/{uuid}`, where `uuid` is the ID of the video file. You can fetch `uuid` from the response body after the video file is uploaded. |
+| `type`       | String   | The type of the message. <li>`video`: A video message. |
+
+#### Send a location message
+
+When a user sends a location message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    "ext":{},
+    "bodies":[
+        {
+            "lng":116.32309156766605,
+            "type":"loc",
+            "addr":"********",
+            "lat":39.96612729238626
+        }
+    ]
+}
+```
+
+The `ext` field is the message extension in Object data type. The `bodies` field is the body of the message callback in Object data type, which contains the following fields:
+
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `log` | String | The longitude of the location. |
+| `lat` | String | The latitude of the location. |
+| `addr` | String | The address of the location. |
+| `type`       | String   | The type of the message. <li>`loc`: A location message. |
+
+#### Send a command message
+
+When a user sends a command message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    "ext":{},
+    "bodies":[
+        {
+            "msg":"rr",
+            "type":"cmd"
+        }
+    ]
+}
+```
+
+The `ext` field is the message extension in Object data type. The `bodies` field is the body of the callback in Object data type, which contains the following fields:
+
+| Field | Data Type | Description |
+| :------------ | :------- | :---------------------------------------- |
+| `msg`        | String   | The content of the command message.                                 |
+| `type`       | String   | The type of the message. <li>`cmd`: A command message. |
+
+#### Send a custom message
+
+When a user sends a custom message in a one-to-one chat, chat group, or chat room, the Agora Chat server sends a callback to your app server. Within this callback, the sample code of the `payload` field is as follows:
+
+```json
+"payload": 
+{
+    "ext":{}, 
+    "bodies":[
+        { 
+            "customExts": [ {"name": 1 } ], 
+            "customEvent": "flower", 
+            "type": "custom" 
+        }
+    ] 
+}
+```
+
+The `ext` field is the message extension in Object data type. The `bodies` field is the message body of the callback in Object data type, which contains the following fields:
+
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `customExts` | Json | The attributes of the custom event, in the `Map<String, String>` forma. The attributes can contain a maximum of 16 elements. |
+| `customEvent`| String | The type of the custom event. The type can be 1 to 32 characters. |
+| `type`       | String   | The type of the message. <li>`custom`: A custom message. |
+
+### Recall a message
+
+When a user recalls a message within a one-to-one chat, chat group, or chat room in the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code is as follows:
+
 ```json
 {
-    "aps":{
-        "alert":{
-            "body":"您有一条新消息"
-        },	 
-        "badge":1,				 
-        "sound":"default"	
+    "chat_type":"recall",
+    "callId":"orgname#appname_9664XXXX5536657404",
+    "security":"ea7aXXXX14fbXXXX33d5f4f169eb4f8d",
+    "payload":
+    {
+        "ext":{},
+        "ack_message_id":"9664XXXX0900644860",
+        "bodies":[]
     },
-    "f":"6001",					 
-    "t":"6006",	
-    "g":"1421300621769",	
-    "m":"373360335316321408"
+    "host":"******",
+    "appkey":"orgname#appname",
+    "from":"tst",
+    "recall_id":"9664XXXX0900644860",
+    "to":"1709XXXX2023810",
+    "eventType":"chat",
+    "msg_id":"9664XXXX5536657404",
+    "timestamp":1642589932646
 }
 ```
 
-| 参数    | 描述                                |
-| :------ | :---------------------------------- |
-| `body`  | 消息显示内容。                      |
-| `badge` | 角标数。                            |
-| `sound` | 提示铃声。                          |
-| `f`     | 消息发送方用户名。                  |
-| `t`     | 消息接收方用户名。                  |
-| `g`     | 群组 ID，如果是单聊则该字段不存在。 |
-| `m`     | 消息 ID。消息的唯一标识符。         |
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `eventType` | String | The message type of the callback. <ul><li>`chat`: Uplink messages. The messages that are about to be sent by the Agora Chat server to end devices.</li><li>`chat_offline`: Offline messages. The messages that are not being sent by the Agora Chat server as the end user is offline.</li></ul> |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the message, in milliseconds. |
+| `chat_type` | String | The type of chat. <ul><li>`chat`: One-to-one chats.</li><li>`groupchat`: Chat groups and chat rooms.</li></ul> |
+| `group_id` | String | The ID of the chat group or chat room where the message resides. This field only exists if `chat_type` is set to `groupchat`. |
+| `from` | String | The sender of the message. |
+| `to`  | String | The recipient of the message. |
+| `recall_id` | String | The ID of the message to recall. |
+| `msg_id` | String | The ID of the message callback. This ID is the same as the `msg_id` when the end user sends the message. |
+The `ext` field is the message extension 
+| `payload` | Object | The structure of the callback that contains the following fields:<ul><li>`ext`: The message extension. This field is empty when recalling a message.</li><li>`ack_message_id`: The ID of the message to recall. This ID is the same as `recall_id`. </li><li>`bodies`: The body of the message callback. This filed is empty when recalling a message.</ul> |
+| `securityVersion` | String | This parameter is reserved for future use.  |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
 
-## 更多功能
+## Chat group and chat room events
 
-### 自定义字段
+When a user performs operations on a chat group or chat room in the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code is as follows:
 
-向推送中添加你自己的业务字段以满足业务需求，比如通过这条推送跳转到某个活动页面。
-
-```swift
-TextMessageBody *body = [[TextMessageBody alloc] initWithText:@"test"];
-Message *message = [[Message alloc] initWithConversationID:conversationId from:currentUsername to:conversationId body:body ext:nil];
-message.ext = @{@"em_apns_ext":@{@"extern":@"custom string"}}; 
-message.chatType = AgoraChatTypeChat; 
-[AgoraChatClient.sharedClient.chatManager sendMessage:message progress:nil completion:nil];
-```
-
-| 参数             | 描述                |
-| :--------------- | :------------------ |
-| `body`           | 推送消息内容。      |
-| `ConversationID` | 消息所属的会话 ID。 |
-| `from`           | 消息发送方用户名。  |
-| `to`             | 消息接收方用户名。  |
-| `em_apns_ext`    | 消息扩展字段。      |
-| `extern`         | 消息扩展具体内容。  |
-
-示例如下：
-	
 ```json
-{
-    "apns": {
-        "alert": {
-            "body": "test"
-        }, 
-        "badge": 1, 
-        "sound": "default"
-    }, 
-    "e": "custom string", 
-    "f": "6001", 
-    "t": "6006", 
-    "m": "373360335316321408"
-}
-```
-
-| 参数    | 描述            |
-| :------ | :-------------- |
-| `body`  | 显示内容。      |
-| `badge` | 角标数。        |
-| `sound` | 提示铃声。      |
-| `f`     | 消息发送方 ID。 |
-| `t`     | 消息接收方 ID。 |
-| `e`     | 自定义信息。    |
-| `m`     | 消息 ID。       |
-
-### 自定义显示
-
-参考如下代码，自定义推送消息显示内容：
-
-```swift
-TextMessageBody *body = [[TextMessageBody alloc] initWithText:@"test"];
-Message *message = [[Message alloc] initWithConversationID:conversationId from:currentUsername to:conversationId body:body ext:nil];
-message.ext = @{@"em_apns_ext":@{@"em_push_content":@"custom push content"}}; 
-message.chatType = AgoraChatTypeChat; 
-[AgoraChatClient.sharedClient.chatManager sendMessage:message progress:nil completion:nil];
-```
-
-| 参数              | 描述                |
-| :---------------- | :------------------ |
-| `body`            | 推送消息内容。      |
-| `ConversationID`  | 消息所属的会话 ID。 |
-| `from`            | 消息发送方用户名。  |
-| `to`              | 消息接收方用户名。  |
-| `em_apns_ext`     | 消息扩展字段。      |
-| `em_push_content` | 消息扩展具体内容。  |
-
-
-示例如下：
-```json
-{
-    "aps":{
-        "alert":{
-            "body":"custom push content"
-        },	 
-        "badge":1,				 
-        "sound":"default"		 
+{ 
+    "chat_type": "muc",
+    "callId": "XXXX#XXXX", 
+    "security": "XXXX", 
+    "payload":{
+    // The details of the callback message.
     },
-    "f":"6001",					 
-    "t":"6006",					 
-    "m":"373360335316321408",
+    "group_id": "1735XXXX6122369",
+    "host": "XXXX",
+    "appkey": "XXXX#XXXX",
+    "from": "XXXX#XXXX_1111@easemob.com/android_8070d7b2-795eb6e63d",
+    "to": "1111",
+    "eventType": "chat",
+    "msg_id": "9764XXXX3882744164",
+    "timestamp": 1644914583273
 }
 ```
 
-| 参数    | 描述                      |
-| :------ | :------------------------ |
-| `body`  | 推送消息内容。            |
-| `badge` | 角标数。                  |
-| `sound` | 提示铃声。                |
-| `f`     | 消息发送方用户名。        |
-| `t`     | 消息接收方用户名。        |
-| `m`     | 消息 ID。消息唯一标识符。 |
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `chat_type` | String | The type of the event. `muc` indicates an event occurred in a chat group or chat room. |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `eventType` | String | The message type of the callback. <ul><li>`chat`: Uplink messages. The messages that are about to be sent by the Agora Chat server to end devices.</li><li>`chat_offline`: Offline messages. The messages that are not being sent by the Agora Chat server as the end user is offline.</li></ul> |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the callback message, in milliseconds. |
+| `group_id` | String | The ID of the chat group or chat room where the message resides. This field only exists if `chat_type` is set to `groupchat`. |
+| `from` | String | The sender of the message. |
+| `to`  | String | The recipient of the message. |
+| `msg_id` | String | The ID of the callback message. This ID is the same as the `msg_id` when sending the message. |
+| `payload` | Object | The structure of the callback that contains the following fields: <ul><li>`muc_id`: The unique identifier of the chat group or chat room in the Agora Chat server, in the format of `{appkey}_{group_ID}@conference.easemob.com`. </li><li>`reason`: Optional. The detailed information of the current operation. See below for details.</li><li>`is_chatroom`: Whether this event occurs in a chat room.<ul><li>`true`: Yes.</li><li>`false`: No, this event occurs in a chat group.</li></ul><li>`operation`: The current operation. See below for details.</li><li>`status`: The status of the current operation that contains the following field.<ul><li>`description`: The status description.</li><li>`error_code`: The status code.</li></ul> |
+| `securityVersion` | String | This parameter is reserved for future use.  |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
 
-### 自定义铃声
+### Create a chat group or chat room
 
-推送铃声指用户收到消息推送时的提示音，你需要将音频文件加入到 app 中，并在推送中配置使用的音频文件名称。详见[苹果官方文档](https://developer.apple.com/documentation/usernotifications/setting_up_a_remote_notification_server/generating_a_remote_notification?language=objc)。
+<div class="alert note">This callback is triggered only if the multi-device service is enabled. Once a user creates a chat group or chat room on one device, the Agora Chat server sends callbacks to other devices, notifying about the creation of the chat group or chat room. </div>
 
-```swift
-TextMessageBody *body = [[TextMessageBody alloc] initWithText:@"test"];
-Message *message = [[Message alloc] initWithConversationID:conversationId from:currentUsername to:conversationId body:body ext:nil];
-message.ext = @{@"em_apns_ext":@{@"em_push_sound":@"custom.caf"}};
-message.chatType = AgoraChatTypeChat; 
-[AgoraChatClient.sharedClient.chatManager sendMessage:message progress:nil completion:nil];
+When a user creates a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    "muc_id": "XXXX#XXXX_173556296122369@conference.easemob.com", 
+    "reason": "",
+    "is_chatroom": false,
+    // "create" indicates that the current operation is to create a chat group or chat room.
+    "operation": "create",
+    "status":
+    {
+        "description":"",
+        "error_code": "ok"
+    }
+}
 ```
 
-| 参数             | 描述                 |
-| :--------------- | :------------------- |
-| `body`           | 推送消息内容。       |
-| `ConversationID` | 消息所属的会话 ID。  |
-| `from`           | 消息发送方用户名。   |
-| `to`             | 消息接收方用户名。   |
-| `em_apns_ext`    | 消息扩展字段。       |
-| `em_push_sound`  | 自定义提示铃声。     |
-| `custom.caf`     | 铃声的音频文件名称。 |
+### Destroy a chat group or chat room
 
-示例如下：
+When a user destroys a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload": 
+{ 
+    "muc_id": "XXXX#XXXX_173548612157441@conference.easemob.com", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "destroy" indicates that the current operation is to destroy a chat group or chat room.
+    "operation": "destroy", 
+    "status": { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+} 
+```
+
+### Request to join a chat group
+
+When a user requests to join a chat group, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX_.com", 
+    // The content of the join request.
+    "reason": "join group123", 
+    "is_chatroom": false, 
+    // "apply" indicates that the current operation is to send a join request to a chat group or chat room.
+    "operation": "apply", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Accept a join request
+
+When a user accepts a join request to the chat group from another user, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "apply_accept" indicates that the current operation is to accept a join request.
+    "operation": "apply_accept", 
+    "status":
+    { 
+        "description": "",
+        "error_code": "ok"
+    }
+}
+```
+
+### Invite a user to join a chat group
+
+When a user invites another user to join a chat group, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX",
+    // The content of the group invitation.
+    "reason": "Hello", 
+    "is_chatroom": false, 
+    // "invite" indicates that the current operation is to send a group invitation to a user.
+    "operation": "invite", 
+    "status": { 
+        "description": "",
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Accept a group invitation
+
+When a user accepts a group invitation, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "invite_accept" indicates that the current operation is to accept a group invitation.
+    "operation": "invite_accept", 
+    "status": { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Decline a group invitation
+
+When a user declines a group invitation, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "invite_decline" indicates that the current operation is to decline a group invitation.
+    "operation": "invite_decline", 
+    "status": { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Join a chat group or chat room
+
+When a user joins a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "presence" indicates that the current operation is to join a chat group or chat room.
+    "operation": "presence", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Leave a chat group or chat room
+
+When a member leaves a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "absence" indicates that the current operation is to leave a chat group or chat room.
+    "operation": "absence", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+When the owner leaves a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "leave" indicates that the current operation is to leave a chat group or chat room.
+    "operation": "leave", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Remove a member from a chat group or chat room
+
+When the owner or an admin removes a member from a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    "is_chatroom": false, 
+    // "kick" indicates that the current operation is to remove a member from a chat group or chat room.
+    "operation": "kick", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Add a member to the block list of a chat group or chat room
+
+When the owner or an admin adds a member to the block list of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173558358671361@conference.easemob.com", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "ban" indicates that the current operation is to add a member to the block list.
+    "operation": "ban", 
+    "status": { 
+        "description": "",
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Remove a member from the block list of a chat group or chat room
+
+When the owner or an admin removes a member from the block list of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    "reason": "undefined", 
+    "is_chatroom": false, 
+    // "allow" indicates that the current operation is to remove a member from the block list.
+    "operation": "allow", 
+    "status": { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Add a member to the allow list of a chat group or chat room
+
+When the owner or an admin adds a member to the allow list of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    "is_chatroom": false, 
+    // "add_user_white_list" indicates that the current operation is to add a member to the allow list.
+    "operation": "add_user_white_list", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+        } 
+}
+```
+
+### Remove a member from the allow list of a chat group or chat room
+
+When the owner or an admin removes a member from the allow list of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    "is_chatroom": false, 
+    // "remove_user_white_list" indicates that the current operation is to remove a member from the allow list.
+    "operation": "remove_user_white_list", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Mute a chat group or chat room
+
+When a member mutes a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "block" indicates that the current operation is to mute a chat group or chat room.
+    "operation": "block", 
+    "status": { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Unmute a chat group or chat room
+
+When a member unmutes a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "unblock" indicates that the current operation is to unmute a chat group or chat room.
+    "operation": "unblock", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Transfer the ownership
+
+When the owner transfers the ownership of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "assing_owner" indicates that the current operation is to transfer the ownership of a chat group or chat room.
+    "operation": "assing_owner", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Promote a member to an admin
+
+When the owner promotes a member to an admin in a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "add_admin" indicates that the current operation is to promote a member to an admin.
+    "operation": "add_admin", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Demote an admin to a member
+
+When the owner demotes an admin to a member in a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "is_chatroom": false, 
+    // "remove_admin" indicates that the current operation is to demote an admin to a member.
+    "operation": "remove_admin", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Mute a member in a chat group or chat room
+
+When the owner or an admin mutes a member in a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "add_mute" indicates that the current operation is to mute a member.
+    "operation": "add_mute", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Unmute a member in a chat group or chat room
+
+When the owner or an admin unmutes a member in a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "reason": "", 
+    "is_chatroom": false, 
+    // "remove_mute" indicates that the current operation is to unmute a member.
+    "operation": "remove_mute", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Mute a chat group or chat room
+
+When a member mutes a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173553668390913XXXX", 
+    "is_chatroom": false, 
+    // "ban_group" indicates that the current operation is to mute a chat group or chat room.
+    "operation": "ban_group", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Unmute a chat group or chat room
+
+When a member unmutes a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173553668390913XXXX", 
+    "is_chatroom": false, 
+    // "remove_ban_group" indicates that the current operation is to unmute a chat group or chat room.
+    "operation": "remove_ban_group", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Update the information of a chat group or chat room
+
+When the owner or an admin updates the information of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549200408577XXXX", 
+    "is_chatroom": false, 
+    // "update" indicates that the current operation is to update the information about a chat group or chat room.
+    "operation": "update", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+### Update the announcements of a chat group or chat room
+
+When the owner or an admin updates the announcements of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX",
+    // The updated announcement. 
+    "reason": "gogngao", 
+    "is_chatroom": false, 
+    // "update_announcement" indicates that the current operation is to update the announcement of a chat group or chat room.
+    "operation": "update_announcement", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Delete the announcements of a chat group or chat room
+
+When the owner or an admin deletes the announcements of a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    // The deleted announcement, which is empty.
+    "reason": "", 
+    "is_chatroom": false, 
+    // "delete_announcement" indicates that the current operation is to delete the announcement of a chat group or chat room.
+    "operation": "delete_announcement", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+### Upload a shared file to a chat group or chat room
+
+When a user uploads a shared file to a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173560762007553XXXX", 
+    "reason": "{
+        \"data\":{
+            \"file_id\":\"79ddf840-8e2f-11ec-bec3-ad40868b03f9\",
+            \"file_name\":\"a.csv\",
+            \"file_owner\":\"@ppAdmin\",
+            \"file_size\":6787,
+            \"created\":1644909510085
+            }
+    }",
+    "is_chatroom": false, 
+    // "upload_file" indicates that the current operation is to upload a shared file to a chat group or chat room.
+    "operation": "upload_file", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    }
+}
+```
+
+`reason` indicates the details of the shared file uploaded to a chat group, which contains the following fields:
+- `file_id`: The ID of the file.
+- `file_name`: The filename.
+- `file_owner`: The owner of the file, that is, the user who uploads the file.
+- `file_size`: The size of the file in bytes.
+- `created`: The Unix timestamp when the file is created, in milliseconds.
+
+### Delete a shared file in a chat group or chat room
+
+When a user deletes a shared file in a chat group or chat room, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{ 
+    "muc_id": "XXXX#XXXX173549292683265XXXX", 
+    // "reason" specifies the ID of the shared file to delete. This ID is the same as the "file_id" used when uploading the file.
+    "reason": "79ddf840-8e2f-11ec-bec3-ad40868b03f9", 
+    "is_chatroom": false, 
+    // "delete_file" indicates that the current operation is to delete a shared file in a chat group or chat room.
+    "operation": "delete_file", 
+    "status":
+    { 
+        "description": "", 
+        "error_code": "ok" 
+    } 
+}
+```
+
+## User contact events
+
+When a user performs operations on contacts in the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code is as follows:
+
 ```json
 {
-    "aps":{
-        "alert":{
-            "body":"您有一条新消息"
-        },  
-        "badge":1,  
-        "sound":"custom.caf"  
+    "chat_type": "roster",
+    "callId": "orgname#appname_9664XXXX5536657404",
+    "security": "XXXXa9feXXXX69241e17b15e2783dbb1",
+    "payload": {
+        // The details of the callback message.
     },
-    "f":"6001",  
-    "t":"6006",  
-    "m":"373360335316321408"  
+    "host": "msync@ebs-ali-beijing-msync26",
+    "appkey":"orgname#appname",
+    "from":"tst",
+    "to":"tst01",
+    "eventType":"chat",
+    "msg_id":"9664XXXX5536657404",
+    "timestamp":1642589932646
 }
 ```
 
-| 参数    | 描述                      |
-| :------ | :------------------------ |
-| `body`  | 推送消息内容。            |
-| `badge` | 角标数。                  |
-| `sound` | 提示铃声。                |
-| `f`     | 消息发送方用户名。        |
-| `t`     | 消息接收方用户名。        |
-| `m`     | 消息 ID。消息唯一标识符。 |
+| Field | Data Type | Description |
+| --- | --- | --- |
+| `chat_type` | String | The type of the event. `roster` indicate an event occurred in user contacts. |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `eventType` | String | The message type of the callback. <ul><li>`chat`: Uplink messages. The messages that are about to be sent by the Agora Chat server to end devices.</li><li>`chat_offline`: Offline messages. The messages that are not being sent by the Agora Chat server as the end user is offline.</li></ul> |
+| `timestamp` | Long | The Unix timestamp when the Agora Chat server receives the message, in milliseconds. |
+| `from` | String | The user who operates the contact. |
+| `to`  | String | The contact that is being operated by the user. |
+| `msg_id` | String | The ID of the message. This ID is the same as the `msg_id` when sending the message. |
+| `payload` | Object | The structure of the callback. See below for details. |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
 
-### 强制推送
+### Send a contact invitation
 
-设置强制推送后，用户发送消息时会忽略接收方的免打扰设置，不论是否处于免打扰时间段都会正常向接收方推送消息。
+When a user adds a contact in the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
 
-```swift
-TextMessageBody *body = [[TextMessageBody alloc] initWithText:@"test"];
-Message *message = [[Message alloc] initWithConversationID:conversationId from:currentUsername to:conversationId body:body ext:nil];
-message.ext = @{@"em_force_notification":@YES};
-message.chatType = AgoraChatTypeChat; 
-[AgoraChatClient.sharedClient.chatManager sendMessage:message progress:nil completion:nil];
+```json
+"payload":
+{
+    "reason":"",
+    // "add" indicates that the current operation is to add a contact.
+    "operation":"add"
+}
 ```
 
-| 参数                    | 描述                                        |
-| :---------------------- | :------------------------------------------ |
-| `body`                  | 推送消息内容。                              |
-| `ConversationID`        | 消息所属的会话 ID。                         |
-| `from`                  | 消息发送方用户名。                          |
-| `to`                    | 消息接收方用户名。                          |
-| `em_force_notification` | 是否为强制推送：YES：强制推送NO：非强制推送 |
+### Remove a contact
 
-### 扩展功能
+When a user removes a contact in the Agora Chat app, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
 
-如果你的目标平台是 iOS 10.0 或更高版本，你可以参考如下代码，实现 [`UNNotificationServiceExtension`](https://developer.apple.com/documentation/usernotifications/unnotificationserviceextension?language=objc) 的扩展功能。
-
-```swift
-TextMessageBody *body = [[TextMessageBody alloc] initWithText:@"test"];
-Message *message = [[Message alloc] initWithConversationID:conversationId from:currentUsername to:conversationId body:body ext:nil];
-message.ext = @{@"em_apns_ext":@{@"em_push_mutable_content":@YES}}; 
-message.chatType = AgoraChatTypeChat; 
-[AgoraChatClient.sharedClient.chatManager sendMessage:message progress:nil completion:nil];
+```json
+"payload":
+{
+    // The version of the contact list.
+    "roster_ver":"XXXXD920XXXX5B51EB0B806E83BDD97F089B0092",
+    // "remove" indicates that the current operation is to remove a contact.
+    "operation":"remove"
+}
 ```
 
-| 参数                      | 描述                           |
-| :------------------------ | :----------------------------- |
-| `body`                    | 推送消息内容。                 |
-| `ConversationID`          | 消息所属的会话 ID。            |
-| `from`                    | 消息发送方用户名。             |
-| `to`                      | 消息接收方用户名。             |
-| `em_apns_ext`             | 消息扩展内容，包含自定义字段。 |
-| `em_push_mutable_content` | 是否使用 `em_apns_ext。`       |
+### Accept a contact invitation
 
-示例如下：
+When you accept the contact invitation from the other users, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    // The version of the contact list.
+    "roster_ver":"XXXX14FEXXXXA9ABC52CA86C5DE1601CF729BFD6",
+    // "accept" indicates that the current operation is to accept the contact invitation.
+    "operation":"accept"
+}
+```
+
+When the other users accept the contact invitation from you, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload": { 
+    // The version of the contact list.
+    "roster_ver": "XXXX718EXXXX3F0C572A5157CFC711D4F6FA490F", 
+    // "remote_accept" indicates that the current operation is to accept the contact invitation.
+    "operation": "remote_accept" 
+}
+```
+
+### Decline a contact invitation
+
+When you decline the contact invitation from the other users, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    // The version of the contact list.
+    "roster_ver":"XXXXEC24XXXX32B2EB1B654AA446930DB9BAFE59",
+    // "decline" indicates that the current operation is to decline the contact invitation.
+    "operation":"decline"
+}
+```
+
+When the other users decline the contact invitation from you, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload": { 
+    // The version of the contact list.
+    "roster_ver": "1BD5718E9C9D3F0C572A5157CFC711D4F6FA490F", 
+    // "remote_decline" indicates that the current operation is to decline the contact invitation.
+    "operation": "remote_decline" 
+}
+```
+
+### Add a contact to the block list
+
+When a user adds a contact to the block list, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    // "ban" indicates that the current operation is to add a contact to the block list.
+    "operation":"ban",
+    "status":
+    {
+        "error_code":"ok"
+    }
+}
+```
+
+### Remove a contact from the block list
+
+When a user removes a contact from the block list, the Agora Chat server sends a callback to your app server. The sample code of the `payload` field is as follows:
+
+```json
+"payload":
+{
+    // "allow" indicates that the current operation is to remove a contact from the block list.
+    "operation":"allow",
+    "status":
+    {
+        "error_code":"ok"
+    }
+}
+```
+
+## Acknowledgement receipt events
+
+When a user sends a receipt, the Agora Chat server sends a callback to your app server. The sample code is as follows:
+
 ```json
 {
-    "aps":{
-        "alert":{
-            "body":"test"
-        },  
-        "badge":1,  
-        "sound":"default",
-        "mutable-content":1  
+    "chat_type": "read_ack",
+    "callId": "XXXX#XXXX968665325555943556",
+    "security": "bd63XXXX8f72XXXX6d33e09a43aa4239",
+    "payload": {
+        "ext": {},
+        "ack_message_id": "9686XXXX3572037776",
+        "bodies": []
     },
-    "f":"6001",  
-    "t":"6006",  
-    "m":"373360335316321408"  
+    "host": "msync@ebs-ali-beijing-msync45",
+    "appkey": "XXXX#XXXX",
+    "from": "1111",
+    "to": "2222",
+    "eventType": "chat",
+    "msg_id": "9686XXXX5555943556",
+    "timestamp": 1643099771248
 }
 ```
 
-| 参数              | 描述                                               |
-| :---------------- | :------------------------------------------------- |
-| `body`            | 推送消息内容。                                     |
-| `badge`           | 角标数。                                           |
-| `sound`           | 提示铃声。                                         |
-| `mutable-content` | 设置为 1 表示激活 UNNotificationServiceExtension。 |
-| `f`               | 消息发送方用户名。                                 |
-| `t`               | 消息接收方用户名。                                 |
-| `m`               | 消息 ID。                                          |
-  
-  [步骤一](#步骤一-开启-APNs-推送服务)
+| Field | Data Type | Description |
+| :---------- | :------- | :----------------------------------------------------------- |
+| `chat_type` | String   | The type of the event. <ul><li>`read_ack`: The read receipts.</li><li>`delivery_ack`: The delivery receipts.</li></ul>                                        |
+| `callId` | String | The ID of the callback. The unique identifier assigned to each callback, in the format of `{appKey}_{uuid}`, among which `uuid` is randomly generated. |
+| `security` | String | The signature in the callback request used to confirm whether this callback is sent from the Agora Chat server. The signature is the MD5 hash of the `{callId} + {secret} + {timestamp}` string, among which `secret` can be found on [Agora Console](https://console.agora.io/).|
+| `payload`   | Object   | The structure of the callback that contains the following fields:<ul><li>`ext`: The message extension field. </li><li>`ack_message_id`: The message ID of the receipt callback.</li><li>`bodies`: The message body.</li></ul> |
+| `host` | String | The domain name assigned by the Agora Chat service to access RESTful APIs. |
+| `appkey` | String | The unique identifier assigned to each app by the Agora Chat service. |
+| `from`      | String   | The user who sends the receipt.                                     |
+| `to`        | String   | The user who receives the receipt.                                     |
+| `eventType` | String | The message type of the callback. <ul><li>`chat`: Uplink messages. The messages that are about to be sent by the Agora Chat server to end devices.</li><li>`chat_offline`: Offline messages. The messages that are not being sent by the Agora Chat server as the end user is offline.</li></ul> |
+| `timestamp` | long     | The Unix timestamp when the Agora Chat server receives the event, in milliseconds.               |
+| `msg_id`    | String   | The ID of the message callback.                                    |
