@@ -103,6 +103,30 @@ bundle ID.
 - < 0: 方法调用失败。
 
 
+### getLocalUserAvatarOptions
+
+获取本地虚拟形象的参数。
+
+```java
+public abstract String getLocalUserAvatarOptions(String key, String args);
+```
+
+**参数**  
+`key`  
+该参数指定为不同值时，代表不同的操作：
+- `request_dresslist`: 获取本地用户的服装可选项。<a name="dress"></a>
+- `request_felist`: 获取本地用户的捏脸可选项。<a name="face"></a>
+
+`args`  
+该参数指定为不同值时，代表不同的范围：
+- 传入空字符串，获取全部可选项的信息。
+- 传入可选项 ID，获取指定可选项的信息。
+
+**返回值**
+- 方法调用成功，会触发 [`onLocalUserAvatarEvent`](#onlocaluseravatarevent) 回调，异步返回对应信息。// TODO: 这里 string 指的是啥？
+- 方法调用失败，返回值为空。
+
+
 ### setupLocalVideoCanvas
 
 初始化虚拟形象的本地视频流。// TODO: 这里的 canvas 是仅指虚拟形象的画布，还是也包含真人的？
@@ -132,6 +156,8 @@ public abstract int setupLocalVideoCanvas(VideoCanvas canvas);
 public abstract int setLocalUserAvatarOptions(String key, byte[] value);
 ```
 
+方法调用成功，会触发 [`onLocalUserAvatarEvent`](#onlocaluseravatarevent) 回调，通知设置结果。
+
 **参数**  
 设置不同的功能选项，需将 `key` 和 `value` 指定为不同的值。具体见下表：
 
@@ -155,30 +181,6 @@ public abstract int setLocalUserAvatarOptions(String key, byte[] value);
 **返回值**
 - 0: 方法调用成功。
 - < 0: 方法调用失败。
-
-
-### getLocalUserAvatarOptions
-
-获取本地虚拟形象的参数。
-
-```java
-public abstract String getLocalUserAvatarOptions(String key, String args);
-```
-
-**参数**  
-`key`  
-该参数指定为不同值时，代表不同的操作：
-- `request_dresslist`: 获取本地用户的服装可选项。<a name="dress"></a>
-- `request_felist`: 获取本地用户的捏脸可选项。<a name="face"></a>
-
-`args`  
-该参数指定为不同值时，代表不同的范围：
-- 传入空字符串，获取全部可选项的信息。
-- 传入可选项 ID，获取指定可选项的信息。// TODO: 怎么知道某个 ID 对应的是哪个选项呢？
-
-**返回值**
-- 方法调用成功，会触发 [`onLocalUserAvatarEvent`](#onlocaluseravatarevent) 回调，异步返回对应信息。// TODO: 这里 string 指的是啥？
-- 方法调用失败，返回值为空。
 
 
 ### registerEventHandler
@@ -264,21 +266,18 @@ public abstract void onLocalUserAvatarError(int err_code, String msg);
 
 ### onLocalUserAvatarEvent
 
-获取本地虚拟形象参数回调。// TODO: 角色加载成功或失败是哪个方法触发的回调？和它有什么区别 onLocalUserAvatarStarted？
+获取本地虚拟形象参数回调。
 
 ```java
 public abstract void onLocalUserAvatarEvent(String key, String buf);
 ```
 
+**参数**  
 在成功调用 [`getLocalUserAvatarOptions`](#getlocaluseravataroptions) 方法后，会触发该回调，返回本地用户的可用服装列表和可用捏脸特性等。
 
-**参数**  
-如获取本地用户的服装可选项，回调参数如下：  
-`key`  
-[`request_dresslist`](#dress)。与调用 `getLocalUserAvatarOptions` 方法时传入的 key 值相同。
-
-`buf`  
-JSON 字符串。示例如下：// TODO: char* string 怎么理解？
+- 如获取本地用户的服装可选项，回调参数如下：  
+  - `key`: [`request_dresslist`](#dress)。与调用 `getLocalUserAvatarOptions` 方法时传入的 key 值相同。
+  - `buf`: JSON 字符串。示例如下：
 
 ```json
 {
@@ -298,12 +297,9 @@ JSON 字符串。示例如下：// TODO: char* string 怎么理解？
 }
 ```
 
-如获取本地用户的捏脸可选项，回调参数如下：  
-`key`  
-[`request_felist`](#face)。与调用 `getLocalUserAvatarOptions` 方法时传入的 key 值相同。
-
-`buf`  
-JSON 字符串。示例如下：
+- 如获取本地用户的捏脸可选项，回调参数如下：  
+  - `key`: [`request_felist`](#face)。与调用 `getLocalUserAvatarOptions` 方法时传入的 key 值相同。
+  - `buf`: JSON 字符串。示例如下：
 <a name="samplecode"></a>
 
 ```json
@@ -316,6 +312,10 @@ JSON 字符串。示例如下：
 }
 ```
 
+在成功调用 [`setLocalUserAvatarOptions`](#setlocaluseravataroptions) 方法后，会触发该回调，返回设置更新后的结果：
+- `key`: 
+  - `set_avatar_success`: 角色加载成功。
+  - `set_avatar_failure`: 角色记载失败。
 
 
 ## 类型定义
