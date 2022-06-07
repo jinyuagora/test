@@ -7,9 +7,10 @@
 
 | 类  | 描述     |
 | -------- | ------- |
+| [RtcEngine](#rtcengine) |   实时音视频的基础接口类。   |
 | [IAvatarEngine](#iavatarengine) |   元直播的基础接口类。   |
 | [IAvatarEngineEventHandler](#iavatarengineeventhandler) |  元直播的回调接口类。   |
-| [RtcEngine](#rtcengine) |   实时音视频的基础接口类。   |
+| [类型定义](#类型定义) |   元直播接口的类型定义。   |
 
 
 ## RtcEngine
